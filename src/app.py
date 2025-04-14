@@ -74,18 +74,21 @@ def create_user():
         return jsonify({"message": "No body provided"}), 400
     if 'username' not in body:
         return jsonify({"message": "No username provided"}), 400
+    # Verificar que el username no exista
+    if User.query.filter_by(username=body['username']).first() is not None:
+        return jsonify({"message": "Username already exists"}), 400
     if 'password' not in body:
         return jsonify({"message": "No password provided"}), 400
     if 'email' not in body:
         return jsonify({"message": "No email provided"}), 400
-    if 'birth_date' not in body:
-        return jsonify({"message": "No birth_date provided"}), 400
+    # Verificar que el email no exista
+    if User.query.filter_by(email=body['email']).first() is not None:   
+        return jsonify({"message": "Email already exists"}), 400
 
     user = User(
         username=body['username'],
         password=body['password'],
         email=body['email'],
-        birth_date=body['birth_date']
     )
     db.session.add(user)
     db.session.commit()
@@ -105,17 +108,24 @@ def update_user(user_id):
         return jsonify({"message": "User not found"}), 404
 
     if 'username' in body:
-        user.username = body['username']
+        if user.username != body['username']:
+            # Verificar que el nuevo username no exista
+            if User.query.filter_by(username=body['username']).first() is not None:
+                return jsonify({"message": "Username already exists"}), 400
+            user.username = body['username']
     if 'password' in body:
-        user.password = body['password']
+        if user.password != body['password']:
+            user.password = body['password']
     if 'email' in body:
-        user.email = body['email']
+        if user.email != body['email']:
+            # Verificar que el nuevo email no exista
+            if User.query.filter_by(email=body['email']).first() is not None:
+                return jsonify({"message": "Email already exists"}), 400
+            user.email = body['email']
     if 'birth_date' in body:
         user.birth_date = body['birth_date']
     if 'is_verified' in body:
         user.is_verified = body['is_verified']
-    if "updated_at" in body:
-        user.updated_at = body['updated_at']
 
     db.session.commit()
     return jsonify(user.serialize()), 200
@@ -134,10 +144,15 @@ def delete_user(user_id):
     return jsonify({"message": "User deleted"}), 200
 
 
-@app.route('/users/<int:user_id>/follow', methods=['POST'])
-def follow_user(user_id):
+@app.route('/users/<int:followed_id>/follow', methods=['POST'])
+def follow_user(followed_id):
     """
     Follow a user
+    Example body:
+    {
+        "follower_id": 1
+    }
+    
     """
     body = request.get_json()
     if not body:
@@ -145,23 +160,34 @@ def follow_user(user_id):
     if 'follower_id' not in body:
         return jsonify({"message": "No follower_id provided"}), 400
 
-    user = User.query.get(user_id)
-    if user is None:
-        return jsonify({"message": "User not found"}), 404
+    followed = User.query.get(followed_id)
+    if followed is None:
+        return jsonify({"message": "Followed not found"}), 404
 
     follower = User.query.get(body['follower_id'])
     if follower is None:
         return jsonify({"message": "Follower not found"}), 404
+    
+    # Verificar que el usuario no se siga a si mismo
+    if followed.id == follower.id:
+        return jsonify({"message": "User cannot follow itself"}), 400
+    # Verificar que el usuario no siga al usuario ya
+    if follower in followed.followers:
+        return jsonify({"message": "User already follows this user"}), 400
 
-    user.followers.append(follower)
+    followed.followers.append(follower)
     db.session.commit()
-    return jsonify(user.serialize()), 200
+    return jsonify(followed.serialize()), 200
 
 
-@app.route('/users/<int:user_id>/unfollow', methods=['POST'])
-def unfollow_user(user_id):
+@app.route('/users/<int:followed_id>/unfollow', methods=['POST'])
+def unfollow_user(followed_id):
     """
     Unfollow a user
+    Example body:
+    {
+        "follower_id": 1
+    }
     """
     body = request.get_json()
     if not body:
@@ -169,23 +195,31 @@ def unfollow_user(user_id):
     if 'follower_id' not in body:
         return jsonify({"message": "No follower_id provided"}), 400
 
-    user = User.query.get(user_id)
-    if user is None:
+    followed = User.query.get(followed_id)
+    if followed is None:
         return jsonify({"message": "User not found"}), 404
 
     follower = User.query.get(body['follower_id'])
     if follower is None:
         return jsonify({"message": "Follower not found"}), 404
+    
+    # Verificar que el follower ya siga al usuario
+    if follower not in followed.followers:
+        return jsonify({"message": "User does not follow this user"}), 400
 
-    user.followers.remove(follower)
+    followed.followers.remove(follower)
     db.session.commit()
-    return jsonify(user.serialize()), 200
+    return jsonify({"message": "Unfollowed user"}), 200
 
 
 @app.route('/users/<int:user_id>/like', methods=['POST'])
 def like_post(user_id):
     """
     Like a post
+    Example body:
+    {
+        "post_id": 1
+    }
     """
     body = request.get_json()
     if not body:
@@ -200,10 +234,14 @@ def like_post(user_id):
     post = Post.query.get(body['post_id'])
     if post is None:
         return jsonify({"message": "Post not found"}), 404
+    
+    # Verificar que el usuario no haya dado like al post ya
+    if user in post.liked_by:
+        return jsonify({"message": "User already liked this post"}), 400
 
-    user.likes.append(post)
+    post.liked_by.append(user)
     db.session.commit()
-    return jsonify(user.serialize()), 200
+    return jsonify(post.serialize()), 200
 
 
 @app.route('/users/<int:user_id>/unlike', methods=['POST'])
