@@ -3,7 +3,7 @@ from flask_admin import Admin
 from models import db, User, Post, Comment
 from flask_admin.contrib.sqla import ModelView
 
-# VERSIÓN SIMPLE
+# #VERSIÓN SIMPLE
 # def setup_admin(app):
 #     app.secret_key = os.environ.get('FLASK_APP_KEY', 'sample key')
 #     app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
@@ -16,12 +16,14 @@ from flask_admin.contrib.sqla import ModelView
 
 #     # You can duplicate that line to add mew models
 #     # admin.add_view(ModelView(YourModelName, db.session))
-# FIN VERSIÓN SIMPLE
+# #FIN VERSIÓN SIMPLE
 
 
-# VERSIÓN AVANZADA
-# Incluye la configuración de las columnas que deseas mostrar en el admin
-# De esta manera se podrán ver las listas asociadas a las relaciones de los modelos
+#VERSIÓN AVANZADA
+#Incluye la configuración de las columnas que deseas mostrar en el admin
+#De esta manera se podrán ver las listas asociadas a las relaciones de los modelos
+
+
 class UserAdmin(ModelView):
     # Especifica las columnas que deseas mostrar
     column_list = ['id', 'username', 'email',
